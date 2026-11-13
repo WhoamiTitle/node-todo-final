@@ -1,0 +1,22 @@
+name: node-todo-final
+services:
+  mongo:
+    image: mongo:8.0.34@sha256:b9924c330a8bbc5800fe9c69f04a84e221eca7b28fd049a0354147d9908fa142
+    command: ['mongod', '--wiredTigerCacheSizeGB', '0.25', '--maxConns', '50']
+    ports:
+      - '127.0.0.1:${MONGO_HOST_PORT:-30357}:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:?Run npm run setup:local}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?Run npm run setup:local}
+    volumes:
+      - mongo-data:/data/db
+    mem_limit: 768m
+    cpus: 1.0
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+volumes:
+  mongo-data:

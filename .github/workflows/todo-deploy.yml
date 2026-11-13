@@ -1,0 +1,71 @@
+name: Deploy TODO to Helios
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Publish the checked revision or restore an installed release
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
+      release:
+        description: Full commit SHA for rollback only
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: helios-node-todo
+  cancel-in-progress: false
+
+jobs:
+  quality:
+    uses: ./.github/workflows/todo-quality.yml
+  deploy:
+    needs: quality
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: helios-todo
+      url: https://se.ifmo.ru/~${{ vars.TODO_DEPLOY_USER }}/todo/
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Require independent DB access agreement
+        env:
+          DB_ACCESS_APPROVED: ${{ vars.TODO_DB_ACCESS_APPROVED }}
+        run: test "$DB_ACCESS_APPROVED" = true
+      - name: Prepare SSH identity
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.HELIOS_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.HELIOS_KNOWN_HOSTS }}
+        run: |
+          test -n "$SSH_PRIVATE_KEY"
+          test -n "$KNOWN_HOSTS"
+          install -d -m 700 "$RUNNER_TEMP/todo-ssh"
+          install -m 600 /dev/null "$RUNNER_TEMP/todo-ssh/key"
+          install -m 600 /dev/null "$RUNNER_TEMP/todo-ssh/known_hosts"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$RUNNER_TEMP/todo-ssh/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$RUNNER_TEMP/todo-ssh/known_hosts"
+      - name: Install build-only assets
+        run: npm ci --ignore-scripts
+      - name: Publish or roll back code without restoring DB data
+        env:
+          TODO_DEPLOY_HOST: ${{ vars.TODO_DEPLOY_HOST }}
+          TODO_DEPLOY_PORT: ${{ vars.TODO_DEPLOY_PORT || '2222' }}
+          TODO_DEPLOY_USER: ${{ vars.TODO_DEPLOY_USER }}
+          TODO_SSH_KEY_PATH: ${{ runner.temp }}/todo-ssh/key
+          TODO_KNOWN_HOSTS_PATH: ${{ runner.temp }}/todo-ssh/known_hosts
+          OPERATION: ${{ inputs.operation }}
+          RELEASE: ${{ inputs.release }}
+        run: sh scripts/helios.sh "$OPERATION" "$RELEASE"
+      - name: Remove SSH files
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/todo-ssh"

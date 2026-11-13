@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.*
+!.env.example
+!.env.database.example
+!.env.helios.example
+.local/
+output/
+.playwright-cli/
+coverage/
+public/icons/
+.DS_Store

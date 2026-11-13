@@ -1,0 +1,6 @@
+node_modules
+public/icons
+.local
+output
+package-lock.json
+.env*

@@ -1,0 +1,50 @@
+name: Recover TODO on Helios
+
+on:
+  schedule:
+    - cron: '7-57/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Check HTTPS only, or recover the currently published release
+        type: choice
+        options: [check, recover]
+        default: check
+
+permissions:
+  contents: read
+
+# Do not replace a pending deployment with a scheduled monitor run.
+# Actual server changes share deployment.guard with deploy and rollback.
+concurrency:
+  group: helios-node-todo-recovery
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    # Enable only after the recovery cutover described in docs/standalone-migration.md.
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' || vars.TODO_RECOVERY_ENABLED == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    environment:
+      name: helios-todo-recovery
+      deployment: false
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24'
+      - name: Check health and optionally start existing services
+        env:
+          TODO_RECOVERY_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'recover' }}
+          TODO_RECOVERY_ENABLED: ${{ vars.TODO_RECOVERY_ENABLED }}
+          TODO_DEPLOY_HOST: ${{ vars.TODO_DEPLOY_HOST || 'helios.cs.ifmo.ru' }}
+          TODO_DEPLOY_PORT: ${{ vars.TODO_DEPLOY_PORT || '2222' }}
+          TODO_DEPLOY_USER: ${{ vars.TODO_DEPLOY_USER }}
+          TODO_RECOVERY_SSH_PRIVATE_KEY: ${{ secrets.TODO_RECOVERY_SSH_PRIVATE_KEY }}
+          HELIOS_KNOWN_HOSTS: ${{ secrets.HELIOS_KNOWN_HOSTS }}
+        run: node scripts/monitor-helios.mjs
