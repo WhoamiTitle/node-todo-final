@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   monitor:
-    # Enable only after the recovery cutover described in docs/standalone-migration.md.
+    # This teaching copy does not own production recovery; keep its flag unset or false.
     if: >-
       github.ref == 'refs/heads/main' &&
       (github.event_name == 'workflow_dispatch' || vars.TODO_RECOVERY_ENABLED == 'true')

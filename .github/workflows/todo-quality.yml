@@ -12,7 +12,7 @@ permissions:
 jobs:
   check:
     # MongoDB rejects the 6.19..7.0.13 kernels currently used by newer runners.
-    # Revisit before Ubuntu 22.04 retirement; see docs/standalone-migration.md.
+    # Revisit before Ubuntu 22.04 retirement on 2027-04-17.
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     services:
