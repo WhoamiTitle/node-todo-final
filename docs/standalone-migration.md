@@ -46,6 +46,24 @@ Actionlint 1.7.12, ShellCheck и npm audit прошли, уязвимостей 
 это не повторная проверка действующих production-секретов. К Helios эти проверки не обращались.
 Первый workflow нового GitHub, release, recovery cutover и приёмка преподавателем являются отдельными этапами.
 
+## Совместимость CI runner и MongoDB
+
+Первый GitHub run выявил ошибку кавычек в унаследованном `--health-cmd`; исправлено так,
+чтобы `--eval` был аргументом mongosh, а не Docker. Следующий run создал контейнер, но MongoDB
+отказалась запускаться на ядре runner: несовместимость TCMalloc с Linux 6.19–7.0.13
+[подтверждена MongoDB](https://www.mongodb.com/docs/manual/release-notes/8.0/).
+
+На 14.11.2026 GitHub описывает ядро 7.0.0 для Ubuntu 24.04, поэтому простая замена latest
+на 24.04 не устраняет проблему. Только quality job временно использует `ubuntu-22.04`,
+для которого указан Linux 6.8. MongoDB image, зависимости приложения и FreeBSD runtime не меняются.
+Deploy и recovery не выполняют MongoDB в контейнере runner и сохраняют прежние labels.
+
+Владелец проекта должен проверить совместимую новую комбинацию runner/kernel/MongoDB и убрать этот
+пин до [вывода Ubuntu 22.04 из поддержки 17.04.2027](https://github.com/actions/runner-images/issues/14254),
+раньше brownout-периодов марта. Нельзя отключать MongoDB kernel-check или выдавать локальный успех
+за прохождение GitHub. Текущие образы: [Ubuntu 22.04](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md),
+[Ubuntu 24.04](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md).
+
 ## Подготовка GitHub без переключения
 
 1. Отправить проверенный commit в `main`, дождаться **TODO quality** нового репозитория.
